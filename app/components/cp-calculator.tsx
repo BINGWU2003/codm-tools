@@ -7,6 +7,7 @@ interface CPTier {
   displayName: string
   isDouble?: boolean
   originalCP?: number // 原始充值金额
+  id?: string // 添加唯一标识
   price?: number // 可以后续添加价格信息
 }
 
@@ -35,18 +36,28 @@ const NORMAL_TIERS: CPTier[] = [
 ]
 
 const DOUBLE_TIERS: CPTier[] = [
-  { cp: 16000, displayName: '8000+8000 CP', isDouble: true, originalCP: 8000 },
-  { cp: 8000, displayName: '4000+4000 CP', isDouble: true, originalCP: 4000 },
-  { cp: 4000, displayName: '2000+2000 CP', isDouble: true, originalCP: 2000 },
-  { cp: 1600, displayName: '800+800 CP', isDouble: true, originalCP: 800 },
-  { cp: 800, displayName: '400+400 CP', isDouble: true, originalCP: 400 }
+  { cp: 16000, displayName: '8000+8000 CP', isDouble: true, originalCP: 8000, id: 'double_16000' },
+  { cp: 8000, displayName: '4000+4000 CP', isDouble: true, originalCP: 4000, id: 'double_8000' },
+  { cp: 4000, displayName: '2000+2000 CP', isDouble: true, originalCP: 2000, id: 'double_4000' },
+  { cp: 1600, displayName: '800+800 CP', isDouble: true, originalCP: 800, id: 'double_1600' },
+  { cp: 800, displayName: '400+400 CP', isDouble: true, originalCP: 400, id: 'double_800' }
 ]
 
 export function CPCalculator() {
   const [targetCP, setTargetCP] = useState<string>('')
-  const [useDoubleTiers, setUseDoubleTiers] = useState<boolean>(true)
 
-  const calculateOptimalSolution = (target: number, allowDouble: boolean): OptimalSolution => {
+  // 为每个双倍档位单独管理状态
+  const [doubleTierAvailability, setDoubleTierAvailability] = useState<Record<string, boolean>>(() => {
+    const initialState: Record<string, boolean> = {}
+    DOUBLE_TIERS.forEach(tier => {
+      if (tier.id) {
+        initialState[tier.id] = true // 默认所有双倍档位都可用
+      }
+    })
+    return initialState
+  })
+
+  const calculateOptimalSolution = (target: number, availableDoubleTiers: CPTier[]): OptimalSolution => {
     if (target <= 0) {
       return {
         results: [],
@@ -61,25 +72,23 @@ export function CPCalculator() {
     const results: CalculationResult[] = []
     let doubleUsed = false
 
-    // 如果允许使用双倍档位，先尝试双倍档位（每个最多用一次）
-    if (allowDouble) {
-      for (const tier of DOUBLE_TIERS) {
-        if (remaining >= tier.cp) {
-          // 双倍档位只能使用一次
-          const quantity = 1
-          const totalCP = tier.cp
+    // 使用可用的双倍档位（每个最多用一次）
+    for (const tier of availableDoubleTiers) {
+      if (remaining >= tier.cp) {
+        // 双倍档位只能使用一次
+        const quantity = 1
+        const totalCP = tier.cp
 
-          results.push({
-            tier,
-            quantity,
-            totalCP,
-            isDoubleUsed: true
-          })
+        results.push({
+          tier,
+          quantity,
+          totalCP,
+          isDoubleUsed: true
+        })
 
-          remaining -= totalCP
-          doubleUsed = true
-          break // 找到一个合适的双倍档位就停止，因为每种双倍档位只能用一次
-        }
+        remaining -= totalCP
+        doubleUsed = true
+        break // 找到一个合适的双倍档位就停止，因为每种双倍档位只能用一次
       }
     }
 
@@ -111,13 +120,18 @@ export function CPCalculator() {
     }
   }
 
+  // 获取当前可用的双倍档位
+  const availableDoubleTiers = useMemo(() => {
+    return DOUBLE_TIERS.filter(tier => tier.id && doubleTierAvailability[tier.id])
+  }, [doubleTierAvailability])
+
   const solution = useMemo(() => {
     const target = parseInt(targetCP)
     if (isNaN(target) || target <= 0) {
       return null
     }
-    return calculateOptimalSolution(target, useDoubleTiers)
-  }, [targetCP, useDoubleTiers])
+    return calculateOptimalSolution(target, availableDoubleTiers)
+  }, [targetCP, availableDoubleTiers])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
@@ -126,6 +140,15 @@ export function CPCalculator() {
       setTargetCP(value)
     }
   }
+
+  const handleDoubleTierToggle = (tierId: string) => {
+    setDoubleTierAvailability(prev => ({
+      ...prev,
+      [tierId]: !prev[tierId]
+    }))
+  }
+
+  const hasAnyDoubleAvailable = Object.values(doubleTierAvailability).some(available => available)
 
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
@@ -147,45 +170,78 @@ export function CPCalculator() {
         />
       </div>
 
-      {/* 双倍档位开关 */}
+      {/* 双倍档位控制面板 */}
       <div className="mb-6">
-        <div className="flex items-center justify-between p-4 bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700 rounded-lg">
-          <div className="flex-1">
-            <div className="flex items-center">
-              <span className="text-lg mr-2">🎉</span>
-              <div>
-                <h3 className="font-semibold text-orange-800 dark:text-orange-200">活动双倍档位</h3>
-                <p className="text-sm text-orange-600 dark:text-orange-300">每种双倍档位只能购买一次</p>
-              </div>
-            </div>
+        <div className="bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700 rounded-lg p-4">
+          <div className="flex items-center mb-3">
+            <span className="text-lg mr-2">🎉</span>
+            <h3 className="font-semibold text-orange-800 dark:text-orange-200">活动双倍档位设置</h3>
           </div>
-          <label className="flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={useDoubleTiers}
-              onChange={(e) => setUseDoubleTiers(e.target.checked)}
-              className="sr-only"
-            />
-            <div className={`relative w-12 h-6 rounded-full transition-colors ${useDoubleTiers ? 'bg-orange-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
-              <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${useDoubleTiers ? 'translate-x-6' : 'translate-x-0'}`} />
+          <p className="text-sm text-orange-600 dark:text-orange-300 mb-4">
+            勾选您还未购买的双倍档位（每种双倍档位只能购买一次）
+          </p>
+
+          <div className="space-y-3">
+            {DOUBLE_TIERS.map((tier) => (
+              <div
+                key={tier.id}
+                className="flex items-center justify-between p-3 bg-white dark:bg-orange-800/20 rounded-lg border border-orange-200 dark:border-orange-600"
+              >
+                <div className="flex items-center">
+                  <span className="font-medium text-orange-800 dark:text-orange-200">
+                    {tier.displayName}
+                  </span>
+                  <span className="ml-2 text-sm text-orange-600 dark:text-orange-400">
+                    = {tier.cp} CP
+                  </span>
+                </div>
+
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={tier.id ? doubleTierAvailability[tier.id] : false}
+                    onChange={() => tier.id && handleDoubleTierToggle(tier.id)}
+                    className="sr-only"
+                  />
+                  <div className={`relative w-10 h-5 rounded-full transition-colors ${tier.id && doubleTierAvailability[tier.id]
+                      ? 'bg-orange-500'
+                      : 'bg-gray-300 dark:bg-gray-600'
+                    }`}>
+                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${tier.id && doubleTierAvailability[tier.id]
+                        ? 'translate-x-5'
+                        : 'translate-x-0'
+                      }`} />
+                  </div>
+                  <span className="ml-2 text-xs text-orange-800 dark:text-orange-200">
+                    {tier.id && doubleTierAvailability[tier.id] ? '可用' : '已购买'}
+                  </span>
+                </label>
+              </div>
+            ))}
+          </div>
+
+          {!hasAnyDoubleAvailable && (
+            <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                ⚠️ 所有双倍档位都已购买，将只使用普通档位计算
+              </p>
             </div>
-            <span className="ml-2 text-sm text-orange-800 dark:text-orange-200">
-              {useDoubleTiers ? '已开启' : '已关闭'}
-            </span>
-          </label>
+          )}
         </div>
       </div>
 
       {/* 显示可用档位 */}
       <div className="mb-6">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">可用充值档位：</h3>
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">当前可用档位：</h3>
 
-        {/* 双倍档位 */}
-        {useDoubleTiers && (
+        {/* 可用的双倍档位 */}
+        {hasAnyDoubleAvailable && (
           <div className="mb-4">
-            <h4 className="text-sm font-medium text-orange-600 dark:text-orange-400 mb-2">🎉 活动双倍档位（限购一次）</h4>
+            <h4 className="text-sm font-medium text-orange-600 dark:text-orange-400 mb-2">
+              🎉 可用双倍档位（限购一次）
+            </h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {DOUBLE_TIERS.map((tier) => (
+              {availableDoubleTiers.map((tier) => (
                 <div
                   key={tier.cp}
                   className="bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700 rounded-lg p-2 text-center"
