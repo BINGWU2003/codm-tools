@@ -1,6 +1,13 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Calculator, Gift, Lightbulb, TrendingUp } from 'lucide-react'
 
 interface CPTier {
   cp: number
@@ -151,219 +158,245 @@ export function CPCalculator() {
   const hasAnyDoubleAvailable = Object.values(doubleTierAvailability).some(available => available)
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
-      <h1 className="text-3xl font-bold text-center mb-8 text-gray-800 dark:text-white">
-        使命召唤手游 CP点充值计算器
-      </h1>
-
-      <div className="mb-6">
-        <label htmlFor="cp-input" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          输入目标CP点数量
-        </label>
-        <input
-          id="cp-input"
-          type="text"
-          value={targetCP}
-          onChange={handleInputChange}
-          placeholder="请输入需要的CP点数量"
-          className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-lg"
-        />
-      </div>
-
-      {/* 双倍档位控制面板 */}
-      <div className="mb-6">
-        <div className="bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700 rounded-lg p-4">
-          <div className="flex items-center mb-3">
-            <span className="text-lg mr-2">🎉</span>
-            <h3 className="font-semibold text-orange-800 dark:text-orange-200">活动双倍档位设置</h3>
+    <div className="max-w-4xl mx-auto space-y-6">
+      <Card>
+        <CardHeader className="text-center">
+          <CardTitle className="flex items-center justify-center space-x-2 text-2xl">
+            <Calculator className="h-6 w-6" />
+            <span>使命召唤手游 CP点充值计算器</span>
+          </CardTitle>
+          <CardDescription>
+            智能计算最优充值方案，支持双倍档位活动
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Input Section */}
+          <div className="space-y-2">
+            <label htmlFor="cp-input" className="text-sm font-medium">
+              输入目标CP点数量
+            </label>
+            <Input
+              id="cp-input"
+              type="text"
+              value={targetCP}
+              onChange={handleInputChange}
+              placeholder="请输入需要的CP点数量"
+              className="text-lg"
+            />
           </div>
-          <p className="text-sm text-orange-600 dark:text-orange-300 mb-4">
+        </CardContent>
+      </Card>
+
+      {/* Double Tier Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Gift className="h-5 w-5 text-orange-500" />
+            <span>活动双倍档位设置</span>
+          </CardTitle>
+          <CardDescription>
             勾选您还未购买的双倍档位（每种双倍档位只能购买一次）
-          </p>
-
-          <div className="space-y-3">
-            {DOUBLE_TIERS.map((tier) => (
-              <div
-                key={tier.id}
-                className="flex items-center justify-between p-3 bg-white dark:bg-orange-800/20 rounded-lg border border-orange-200 dark:border-orange-600"
-              >
-                <div className="flex items-center">
-                  <span className="font-medium text-orange-800 dark:text-orange-200">
-                    {tier.displayName}
-                  </span>
-                  <span className="ml-2 text-sm text-orange-600 dark:text-orange-400">
-                    = {tier.cp} CP
-                  </span>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {DOUBLE_TIERS.map((tier) => (
+            <div
+              key={tier.id}
+              className="flex items-center justify-between p-4 border rounded-lg"
+            >
+              <div className="flex items-center space-x-3">
+                <Gift className="h-4 w-4 text-orange-500" />
+                <div>
+                  <div className="font-medium">{tier.displayName}</div>
+                  <div className="text-sm text-muted-foreground">= {tier.cp} CP</div>
                 </div>
-
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={tier.id ? doubleTierAvailability[tier.id] : false}
-                    onChange={() => tier.id && handleDoubleTierToggle(tier.id)}
-                    className="sr-only"
-                  />
-                  <div className={`relative w-10 h-5 rounded-full transition-colors ${tier.id && doubleTierAvailability[tier.id]
-                      ? 'bg-orange-500'
-                      : 'bg-gray-300 dark:bg-gray-600'
-                    }`}>
-                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform ${tier.id && doubleTierAvailability[tier.id]
-                        ? 'translate-x-5'
-                        : 'translate-x-0'
-                      }`} />
-                  </div>
-                  <span className="ml-2 text-xs text-orange-800 dark:text-orange-200">
-                    {tier.id && doubleTierAvailability[tier.id] ? '可用' : '已购买'}
-                  </span>
-                </label>
               </div>
-            ))}
-          </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={tier.id ? doubleTierAvailability[tier.id] : false}
+                  onCheckedChange={() => tier.id && handleDoubleTierToggle(tier.id)}
+                />
+                <Badge variant={tier.id && doubleTierAvailability[tier.id] ? "default" : "secondary"}>
+                  {tier.id && doubleTierAvailability[tier.id] ? '可用' : '已购买'}
+                </Badge>
+              </div>
+            </div>
+          ))}
 
           {!hasAnyDoubleAvailable && (
-            <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg">
-              <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                ⚠️ 所有双倍档位都已购买，将只使用普通档位计算
-              </p>
+            <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <div className="flex items-center space-x-2 text-yellow-800 dark:text-yellow-200">
+                <Lightbulb className="h-4 w-4" />
+                <span className="text-sm font-medium">
+                  所有双倍档位都已购买，将只使用普通档位计算
+                </span>
+              </div>
             </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* 显示可用档位 */}
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">当前可用档位：</h3>
+      {/* Available Tiers Display */}
+      <Card>
+        <CardHeader>
+          <CardTitle>当前可用档位</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Available Double Tiers */}
+          {hasAnyDoubleAvailable && (
+            <div>
+              <h4 className="text-sm font-medium text-orange-600 dark:text-orange-400 mb-3 flex items-center">
+                <Gift className="h-4 w-4 mr-1" />
+                可用双倍档位（限购一次）
+              </h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {availableDoubleTiers.map((tier) => (
+                  <Card key={tier.cp} className="border-orange-200 dark:border-orange-800">
+                    <CardContent className="p-3 text-center">
+                      <div className="text-xs font-medium text-orange-800 dark:text-orange-200">
+                        {tier.displayName}
+                      </div>
+                      <div className="text-xs text-orange-600 dark:text-orange-400">
+                        = {tier.cp} CP
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
 
-        {/* 可用的双倍档位 */}
-        {hasAnyDoubleAvailable && (
-          <div className="mb-4">
-            <h4 className="text-sm font-medium text-orange-600 dark:text-orange-400 mb-2">
-              🎉 可用双倍档位（限购一次）
+          {/* Normal Tiers */}
+          <div>
+            <h4 className="text-sm font-medium text-primary mb-3 flex items-center">
+              <Calculator className="h-4 w-4 mr-1" />
+              普通档位
             </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {availableDoubleTiers.map((tier) => (
-                <div
-                  key={tier.cp}
-                  className="bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700 rounded-lg p-2 text-center"
-                >
-                  <span className="text-xs font-medium text-orange-800 dark:text-orange-200 block">
-                    {tier.displayName}
-                  </span>
-                  <span className="text-xs text-orange-600 dark:text-orange-400">
-                    = {tier.cp} CP
-                  </span>
-                </div>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+              {NORMAL_TIERS.map((tier) => (
+                <Card key={tier.cp}>
+                  <CardContent className="p-3 text-center">
+                    <div className="text-sm font-medium">
+                      {tier.cp} CP
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           </div>
-        )}
+        </CardContent>
+      </Card>
 
-        {/* 普通档位 */}
-        <div>
-          <h4 className="text-sm font-medium text-blue-600 dark:text-blue-400 mb-2">💎 普通档位</h4>
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-            {NORMAL_TIERS.map((tier) => (
-              <div
-                key={tier.cp}
-                className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-2 text-center"
-              >
-                <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                  {tier.cp} CP
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
+      {/* Results */}
       {solution && (
-        <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
-            最优充值方案
-          </h2>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <TrendingUp className="h-5 w-5" />
+              <span>最优充值方案</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {solution.results.length > 0 ? (
+              <>
+                <div className="space-y-3">
+                  {solution.results.map((result, index) => (
+                    <Card
+                      key={index}
+                      className={result.isDoubleUsed ? 'border-orange-200 dark:border-orange-800' : ''}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            {result.isDoubleUsed && <Gift className="h-4 w-4 text-orange-500" />}
+                            <span className="font-medium">
+                              {result.tier.displayName} × {result.quantity}
+                            </span>
+                          </div>
+                          <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+                            = {result.totalCP} CP
+                          </Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
 
-          {solution.results.length > 0 ? (
-            <>
-              <div className="space-y-3 mb-4">
-                {solution.results.map((result, index) => (
-                  <div
-                    key={index}
-                    className={`flex justify-between items-center rounded-lg p-3 border ${result.isDoubleUsed
-                        ? 'bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-700'
-                        : 'bg-white dark:bg-gray-600 border-gray-200 dark:border-gray-500'
-                      }`}
-                  >
-                    <div className="flex items-center">
-                      {result.isDoubleUsed && <span className="text-orange-500 mr-2">🎉</span>}
-                      <span className={`font-medium ${result.isDoubleUsed
-                          ? 'text-orange-800 dark:text-orange-200'
-                          : 'text-gray-800 dark:text-white'
-                        }`}>
-                        {result.tier.displayName} × {result.quantity}
-                      </span>
-                    </div>
-                    <span className="text-green-600 dark:text-green-400 font-semibold">
-                      = {result.totalCP} CP
-                    </span>
-                  </div>
-                ))}
-              </div>
+                <Separator />
 
-              <div className="border-t border-gray-200 dark:border-gray-600 pt-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-                  <div className="bg-white dark:bg-gray-600 rounded-lg p-3">
-                    <div className="text-sm text-gray-600 dark:text-gray-300">获得CP点</div>
-                    <div className="text-lg font-bold text-green-600 dark:text-green-400">
-                      {solution.totalCP}
-                    </div>
-                  </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <Card>
+                    <CardContent className="p-4 text-center">
+                      <div className="text-sm text-muted-foreground">获得CP点</div>
+                      <div className="text-2xl font-bold text-green-600">
+                        {solution.totalCP}
+                      </div>
+                    </CardContent>
+                  </Card>
 
                   {solution.remainingCP > 0 && (
-                    <div className="bg-white dark:bg-gray-600 rounded-lg p-3">
-                      <div className="text-sm text-gray-600 dark:text-gray-300">仍需CP点</div>
-                      <div className="text-lg font-bold text-red-600 dark:text-red-400">
-                        {solution.remainingCP}
-                      </div>
-                    </div>
+                    <Card>
+                      <CardContent className="p-4 text-center">
+                        <div className="text-sm text-muted-foreground">仍需CP点</div>
+                        <div className="text-2xl font-bold text-red-600">
+                          {solution.remainingCP}
+                        </div>
+                      </CardContent>
+                    </Card>
                   )}
 
-                  <div className="bg-white dark:bg-gray-600 rounded-lg p-3">
-                    <div className="text-sm text-gray-600 dark:text-gray-300">满足率</div>
-                    <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                      {solution.efficiency.toFixed(1)}%
-                    </div>
-                  </div>
+                  <Card>
+                    <CardContent className="p-4 text-center">
+                      <div className="text-sm text-muted-foreground">满足率</div>
+                      <div className="text-2xl font-bold text-primary">
+                        {solution.efficiency.toFixed(1)}%
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
+
+                {solution.doubleUsed && (
+                  <Card className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20">
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-2 text-orange-800 dark:text-orange-200">
+                        <Gift className="h-4 w-4" />
+                        <span className="text-sm font-medium">
+                          已使用活动双倍档位，节省了更多费用！
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {solution.remainingCP > 0 && (
+                  <Card className="border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20">
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-2 text-yellow-800 dark:text-yellow-200">
+                        <Lightbulb className="h-4 w-4" />
+                        <span className="text-sm">
+                          提示：还差 {solution.remainingCP} CP点，建议购买 80 CP档位 {Math.ceil(solution.remainingCP / 80)} 次
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            ) : (
+              <div className="text-center text-muted-foreground">
+                无法通过现有档位满足此CP点需求
               </div>
-
-              {solution.doubleUsed && (
-                <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700 rounded-lg">
-                  <p className="text-sm text-orange-800 dark:text-orange-200">
-                    🎉 已使用活动双倍档位，节省了更多费用！
-                  </p>
-                </div>
-              )}
-
-              {solution.remainingCP > 0 && (
-                <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 rounded-lg">
-                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                    💡 提示：还差 {solution.remainingCP} CP点，建议购买 80 CP档位 {Math.ceil(solution.remainingCP / 80)} 次
-                  </p>
-                </div>
-              )}
-            </>
-          ) : (
-            <p className="text-gray-600 dark:text-gray-300">
-              无法通过现有档位满足此CP点需求
-            </p>
-          )}
-        </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {targetCP && !solution && (
-        <div className="text-center text-gray-500 dark:text-gray-400 mt-6">
-          请输入有效的CP点数量
-        </div>
+        <Card>
+          <CardContent className="p-8 text-center text-muted-foreground">
+            请输入有效的CP点数量
+          </CardContent>
+        </Card>
       )}
     </div>
   )
