@@ -1,7 +1,7 @@
 import { SidebarLayout } from './components/sidebar-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Calculator, Target, Settings, ArrowRight } from 'lucide-react'
+import { Calculator, Target, Settings } from 'lucide-react'
 
 export default function Home() {
   return (

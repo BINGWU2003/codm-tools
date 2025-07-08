@@ -1,5 +1,4 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { CheckCircle, Bell } from 'lucide-react'
 
 interface ComingSoonProps {
