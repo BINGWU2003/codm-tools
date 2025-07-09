@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { Calculator, Gift, Lightbulb, TrendingUp } from 'lucide-react'
+import { Calculator, Gift, Lightbulb, TrendingUp, Settings, Eye, EyeOff } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface CPTier {
   cp: number
@@ -14,44 +15,48 @@ interface CPTier {
   isDouble?: boolean
   originalCP?: number // 原始充值金额
   id?: string // 添加唯一标识
-  price?: number // 可以后续添加价格信息
+  price?: number // RMB价格
 }
 
 interface CalculationResult {
   tier: CPTier
   quantity: number
   totalCP: number
+  totalPrice?: number
   isDoubleUsed?: boolean
 }
 
 interface OptimalSolution {
   results: CalculationResult[]
   totalCP: number
+  totalPrice?: number
   remainingCP: number
   efficiency: number
   doubleUsed: boolean
 }
 
 const NORMAL_TIERS: CPTier[] = [
-  { cp: 10800, displayName: '10800 CP' },
-  { cp: 5000, displayName: '5000 CP' },
-  { cp: 2400, displayName: '2400 CP' },
-  { cp: 880, displayName: '880 CP' },
-  { cp: 420, displayName: '420 CP' },
-  { cp: 80, displayName: '80 CP' }
+  { cp: 10800, displayName: '10800 CP', price: 580 },
+  { cp: 5000, displayName: '5000 CP', price: 300 },
+  { cp: 2400, displayName: '2400 CP', price: 160 },
+  { cp: 880, displayName: '880 CP', price: 60 },
+  { cp: 420, displayName: '420 CP', price: 30 },
+  { cp: 80, displayName: '80 CP', price: 8 }
 ]
 
 const DOUBLE_TIERS: CPTier[] = [
-  { cp: 16000, displayName: '8000+8000 CP', isDouble: true, originalCP: 8000, id: 'double_16000' },
-  { cp: 8000, displayName: '4000+4000 CP', isDouble: true, originalCP: 4000, id: 'double_8000' },
-  { cp: 4000, displayName: '2000+2000 CP', isDouble: true, originalCP: 2000, id: 'double_4000' },
-  { cp: 1600, displayName: '800+800 CP', isDouble: true, originalCP: 800, id: 'double_1600' },
-  { cp: 800, displayName: '400+400 CP', isDouble: true, originalCP: 400, id: 'double_800' }
+  { cp: 16000, displayName: '8000+8000 CP', isDouble: true, originalCP: 8000, id: 'double_16000', price: 580 },
+  { cp: 8000, displayName: '4000+4000 CP', isDouble: true, originalCP: 4000, id: 'double_8000', price: 300 },
+  { cp: 4000, displayName: '2000+2000 CP', isDouble: true, originalCP: 2000, id: 'double_4000', price: 160 },
+  { cp: 1600, displayName: '800+800 CP', isDouble: true, originalCP: 800, id: 'double_1600', price: 60 },
+  { cp: 800, displayName: '400+400 CP', isDouble: true, originalCP: 400, id: 'double_800', price: 30 }
 ]
 
 export function CPCalculator() {
   const [targetCP, setTargetCP] = useState<string>('')
-
+  const [priceMode, setPriceMode] = useState<boolean>(false)
+  const [clickCount, setClickCount] = useState<number>(0)
+  
   // 为每个双倍档位单独管理状态
   const [doubleTierAvailability, setDoubleTierAvailability] = useState<Record<string, boolean>>(() => {
     const initialState: Record<string, boolean> = {}
@@ -62,12 +67,13 @@ export function CPCalculator() {
     })
     return initialState
   })
-
-  const calculateOptimalSolution = (target: number, availableDoubleTiers: CPTier[]): OptimalSolution => {
+  
+  const calculateOptimalSolution = (target: number, availableDoubleTiers: CPTier[], includePrices: boolean): OptimalSolution => {
     if (target <= 0) {
       return {
         results: [],
         totalCP: 0,
+        totalPrice: includePrices ? 0 : undefined,
         remainingCP: target,
         efficiency: 0,
         doubleUsed: false
@@ -77,49 +83,61 @@ export function CPCalculator() {
     let remaining = target
     const results: CalculationResult[] = []
     let doubleUsed = false
-
+    let totalPrice = 0
+    
     // 使用可用的双倍档位（每个最多用一次）
     for (const tier of availableDoubleTiers) {
       if (remaining >= tier.cp) {
         // 双倍档位只能使用一次
         const quantity = 1
         const totalCP = tier.cp
-
+        const itemPrice = includePrices && tier.price ? tier.price * quantity : undefined
+        
         results.push({
           tier,
           quantity,
           totalCP,
+          totalPrice: itemPrice,
           isDoubleUsed: true
         })
-
+        
         remaining -= totalCP
+        if (includePrices && tier.price) {
+          totalPrice += tier.price
+        }
         doubleUsed = true
         break // 找到一个合适的双倍档位就停止，因为每种双倍档位只能用一次
       }
     }
-
+    
     // 使用普通档位处理剩余的CP需求
     for (const tier of NORMAL_TIERS) {
       if (remaining >= tier.cp) {
         const quantity = Math.floor(remaining / tier.cp)
         const totalCP = quantity * tier.cp
-
+        const itemPrice = includePrices && tier.price ? tier.price * quantity : undefined
+        
         results.push({
           tier,
           quantity,
-          totalCP
+          totalCP,
+          totalPrice: itemPrice
         })
-
+        
         remaining -= totalCP
+        if (includePrices && tier.price) {
+          totalPrice += tier.price * quantity
+        }
       }
     }
-
+    
     const totalCP = results.reduce((sum, result) => sum + result.totalCP, 0)
     const efficiency = target > 0 ? (totalCP / target) * 100 : 0
-
+    
     return {
       results,
       totalCP,
+      totalPrice: includePrices ? totalPrice : undefined,
       remainingCP: remaining,
       efficiency,
       doubleUsed
@@ -136,8 +154,8 @@ export function CPCalculator() {
     if (isNaN(target) || target <= 0) {
       return null
     }
-    return calculateOptimalSolution(target, availableDoubleTiers)
-  }, [targetCP, availableDoubleTiers])
+    return calculateOptimalSolution(target, availableDoubleTiers, priceMode)
+  }, [targetCP, availableDoubleTiers, priceMode])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
@@ -154,18 +172,54 @@ export function CPCalculator() {
     }))
   }
 
+  const handleTitleClick = () => {
+    const newCount = clickCount + 1
+    setClickCount(newCount)
+    
+    // 连续点击7次激活价格模式
+    if (newCount >= 7) {
+      setPriceMode(true)
+      setClickCount(0) // 重置计数
+    }
+    
+    // 如果已经在价格模式，点击可以关闭
+    if (priceMode && newCount === 1) {
+      setPriceMode(false)
+      setClickCount(0)
+    }
+    
+    // 5秒后重置点击计数
+    setTimeout(() => {
+      setClickCount(0)
+    }, 5000)
+  }
+
   const hasAnyDoubleAvailable = Object.values(doubleTierAvailability).some(available => available)
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <Card>
         <CardHeader className="text-center">
-          <CardTitle className="flex items-center justify-center space-x-2 text-2xl">
+          <CardTitle 
+            className="flex items-center justify-center space-x-2 text-2xl cursor-pointer hover:text-primary/80 transition-colors select-none"
+            onClick={handleTitleClick}
+          >
             <Calculator className="h-6 w-6" />
             <span>使命召唤手游 CP点充值计算器</span>
+            {priceMode && (
+              <Badge variant="secondary" className="ml-2">
+                <Eye className="h-3 w-3 mr-1" />
+                价格模式
+              </Badge>
+            )}
           </CardTitle>
           <CardDescription>
             智能计算最优充值方案，支持双倍档位活动
+            {!priceMode && clickCount > 0 && (
+              <div className="text-xs text-muted-foreground mt-1">
+                再点击 {7 - clickCount} 次启用价格计算...
+              </div>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -183,6 +237,24 @@ export function CPCalculator() {
               className="text-lg"
             />
           </div>
+
+          {/* Price Mode Toggle */}
+          {priceMode && (
+            <div className="flex items-center justify-between p-4 bg-primary/5 border border-primary/20 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Settings className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">价格计算模式</span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPriceMode(false)}
+              >
+                <EyeOff className="h-4 w-4 mr-1" />
+                关闭
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -207,10 +279,15 @@ export function CPCalculator() {
                 <Gift className="h-4 w-4 text-orange-500" />
                 <div>
                   <div className="font-medium">{tier.displayName}</div>
-                  <div className="text-sm text-muted-foreground">= {tier.cp} CP</div>
+                  <div className="text-sm text-muted-foreground">
+                    = {tier.cp} CP
+                    {priceMode && tier.price && (
+                      <span className="ml-2 text-green-600 font-medium">¥{tier.price}</span>
+                    )}
+                  </div>
                 </div>
               </div>
-
+              
               <div className="flex items-center space-x-2">
                 <Switch
                   checked={tier.id ? doubleTierAvailability[tier.id] : false}
@@ -222,7 +299,7 @@ export function CPCalculator() {
               </div>
             </div>
           ))}
-
+          
           {!hasAnyDoubleAvailable && (
             <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
               <div className="flex items-center space-x-2 text-yellow-800 dark:text-yellow-200">
@@ -259,13 +336,18 @@ export function CPCalculator() {
                       <div className="text-xs text-orange-600 dark:text-orange-400">
                         = {tier.cp} CP
                       </div>
+                      {priceMode && tier.price && (
+                        <div className="text-xs text-green-600 font-medium mt-1">
+                          ¥{tier.price}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
               </div>
             </div>
           )}
-
+          
           {/* Normal Tiers */}
           <div>
             <h4 className="text-sm font-medium text-primary mb-3 flex items-center">
@@ -279,6 +361,11 @@ export function CPCalculator() {
                     <div className="text-sm font-medium">
                       {tier.cp} CP
                     </div>
+                    {priceMode && tier.price && (
+                      <div className="text-xs text-green-600 font-medium mt-1">
+                        ¥{tier.price}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
@@ -301,17 +388,24 @@ export function CPCalculator() {
               <>
                 <div className="space-y-3">
                   {solution.results.map((result, index) => (
-                    <Card
-                      key={index}
+                    <Card 
+                      key={index} 
                       className={result.isDoubleUsed ? 'border-orange-200 dark:border-orange-800' : ''}
                     >
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-3">
                             {result.isDoubleUsed && <Gift className="h-4 w-4 text-orange-500" />}
-                            <span className="font-medium">
-                              {result.tier.displayName} × {result.quantity}
-                            </span>
+                            <div>
+                              <span className="font-medium">
+                                {result.tier.displayName} × {result.quantity}
+                              </span>
+                              {priceMode && result.totalPrice && (
+                                <div className="text-sm text-green-600 font-medium">
+                                  单价 ¥{result.tier.price} × {result.quantity} = ¥{result.totalPrice}
+                                </div>
+                              )}
+                            </div>
                           </div>
                           <Badge variant="default" className="bg-green-600 hover:bg-green-700">
                             = {result.totalCP} CP
@@ -321,10 +415,10 @@ export function CPCalculator() {
                     </Card>
                   ))}
                 </div>
-
+                
                 <Separator />
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                
+                <div className={`grid grid-cols-1 ${priceMode ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-4`}>
                   <Card>
                     <CardContent className="p-4 text-center">
                       <div className="text-sm text-muted-foreground">获得CP点</div>
@@ -333,7 +427,18 @@ export function CPCalculator() {
                       </div>
                     </CardContent>
                   </Card>
-
+                  
+                  {priceMode && solution.totalPrice !== undefined && (
+                    <Card>
+                      <CardContent className="p-4 text-center">
+                        <div className="text-sm text-muted-foreground">总花费</div>
+                        <div className="text-2xl font-bold text-blue-600">
+                          ¥{solution.totalPrice}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                  
                   {solution.remainingCP > 0 && (
                     <Card>
                       <CardContent className="p-4 text-center">
@@ -344,7 +449,7 @@ export function CPCalculator() {
                       </CardContent>
                     </Card>
                   )}
-
+                  
                   <Card>
                     <CardContent className="p-4 text-center">
                       <div className="text-sm text-muted-foreground">满足率</div>
@@ -354,7 +459,7 @@ export function CPCalculator() {
                     </CardContent>
                   </Card>
                 </div>
-
+                
                 {solution.doubleUsed && (
                   <Card className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20">
                     <CardContent className="p-4">
@@ -367,15 +472,20 @@ export function CPCalculator() {
                     </CardContent>
                   </Card>
                 )}
-
+                
                 {solution.remainingCP > 0 && (
                   <Card className="border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20">
                     <CardContent className="p-4">
                       <div className="flex items-center space-x-2 text-yellow-800 dark:text-yellow-200">
                         <Lightbulb className="h-4 w-4" />
-                        <span className="text-sm">
-                          提示：还差 {solution.remainingCP} CP点，建议购买 80 CP档位 {Math.ceil(solution.remainingCP / 80)} 次
-                        </span>
+                        <div className="text-sm">
+                          <div>提示：还差 {solution.remainingCP} CP点，建议购买 80 CP档位 {Math.ceil(solution.remainingCP / 80)} 次</div>
+                          {priceMode && (
+                            <div className="mt-1 text-green-600 font-medium">
+                              额外费用：¥{Math.ceil(solution.remainingCP / 80) * 8}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -389,7 +499,7 @@ export function CPCalculator() {
           </CardContent>
         </Card>
       )}
-
+      
       {targetCP && !solution && (
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
